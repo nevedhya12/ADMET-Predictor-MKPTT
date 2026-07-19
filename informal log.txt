@@ -1,0 +1,126 @@
+## 18-07-26
+- Decided to go with the first dataset provided in the references. the other two looked complicated and I was happy with the first one so I didn't wish to waste much time on looking into other datasets (although, I think there must exist far better datasets, but I am at the mercy of time, so let that sink in)
+
+- Didn't knew much about the splitting, so I looked into it and came to a conclusion of using neither scaffold nor random, rather I will be compressing my 2048 bit (compression is intelligence) and then clustering them to get my test and train set, then I will use K-Fold and to generate my prediction I will use the ensemble of the models produced by the K-Fold.
+
+- Later on I will tweak, number of clustering. Currently, I have the number set to 5 so like for the 5 different datasets namely ADMET, I have 5 different clusters for each which I think this is a parameter may affect my predictions so, I will be watching this pesky lil parameter but for now let the number 5 sink in. 
+
+- While I was looking at my clustering 3D map, I realized that there were some outliners and because this is chemistry and not some random-ahh numbers those outliners can basically mean complex structures and therefore we can't just simple let those outliners "sink in". And because these were outliners our K-Mean gave them a group of thier own, which is not desired because, if there exists a group of say 16, it will get same power as a group of 1000, and even if we use proportional voting we still won't be able to capture the true essence. Thus, replacing K-Means with HDBSCAN, which has it's own benefits and catch which I don't think is necessary to write down here. BUT... because I am at the mercy of time I will look into replacing our K-Means later.
+
+## RUN-1
+- I have achieved absolute garbage of an accuracy.
+  => For Absorption it was 	-00.23
+  => For Distribution it was 	 69.20%
+  => For Metabolism it was	 66.69%
+  => For Excretion it was 	-00.07
+  => For Toxicity it was 	 67.67%
+
+- The regressors are the most sensitive with batch size, and as I suspected this outliners are becoming pain-in-ahh, so we gotta have to look into the HDBSCAN which I mentioned above, so implementing that would be my next step and alongside this, I will also be looking into other algorithms aswell because, why not?
+
+- P.S. I will also be adding new features as well such as molecular weight etc 
+
+- P.S. again because I realized that currently, I am compressing fingerprints from 2048 to 3, and that is crassyy, so rather I would like to pickup a optimial number by looping from 3 to say 50. Also as I will be adding descriptors from the RDkit, I would have to scale them and concanate them with the compressed fingerprint feature vector. (tbh things are looking kinda promising rn, so I can't wait to see results of RUN-2)
+
+- P.S. I looped through different compression dimension from 3 to 100 and found out that, it doesn't really matter wheather I choose 3 or 100 dimensions to compress 2048 to, lol. But I will switch from 3 to 10 because as I would be adding descriptors I want this ratio between fingerprints and descriptors which I would also be tweaking. 
+	
+- I got to know that information leak can also happen using scaling, that was something I never thought of and now when I got to know about this I feel dumb and smart at the same time and that is crassy. So, future work: fit UMAP/scaler within each fold rather than globally.
+
+- Before I forget which descriptors I have added and why them? below is the full list of what and why:
+	- MW (molecular weight): Absorption (Lipinski cutoff ~500), renal clearance favors smaller molecules.
+	- LogP		       : Membrane permeability, CYP metabolism likelihood, toxicity via promiscuous binding.
+	- TPSA		       : Strong predictor of oral absorption and blood-brain barrier crossing.
+	- HBD (H-bond donors)  : Absorption, Lipinski rule of 5.
+	- HBA (H-bond acceptor): Absorption, Lipinski rule of 5.
+	- RotBonds	       : Oral bioavailability, binding/clearance behavior.
+	- AromaticRings        : Metabolic stability, CYP liability, toxicity risk.
+	- FormalCharge         : Distribution, renal excretion (charged species clear differently).
+	- MolarRefractivity    : Correlates with distribution and metabolism behavior.
+	- Fsp3		       : Metabolic stability; flat molecules are linked to promiscuity/toxicity.
+	- QED                  : Single summary score of how "normal" a molecule looks overall.
+	- AmideBondCount       : Directly flags peptide-like structures — this is your "crazy structure" signal.
+	- MaxRingSize          : Macrocycles (rings >12 atoms) are structurally unlike typical drug-like rings.
+	- BertzCT              : Single number that naturally separates simple molecules from tangled/unusual ones.
+	- Stereocenter         : Peptides and complex natural products tend to have many; simple molecules have few.
+
+
+## RUN-2
+- Big Improvement from before but A&E still needs a lot of improvement.
+  => For Absorption it was 	-00.23
+  => For Distribution it was 	 76.90%
+  => For Metabolism it was	 75.79%
+  => For Excretion it was 	-00.13
+  => For Toxicity it was 	 76.64%
+
+- So only regressors, are the one with very low accuracy right now, and clearly the classifier's accuracy have been increased significantly by adding various descriptors.
+
+- My next move is finding the right cluster size for all the different endpoints, for which I will be looping through various cluster sizes with different endpoints and evaluating accuracy, and then hopefully, my regressors start doing better.
+
+- P.S. After running the script below is my findings:
+	- Absorption   = 5 -> 4
+	- Distribution = 5 -> 7
+	- Metabolism   = 5 -> 7
+	- Excretion    = 5 -> 3
+	- Toxicity     = 5 -> 10
+- P.S. I suspect that because I am using RANDOM_STATE 42, this optimal K might be a fluke so to erase this suspicion I rewritten the script to avg out the accuracy of different K over different RANDOM_STATES.
+
+-P.S. I was right only the Absorption endpoints have a stable K and has a standard deviation of 0 over the different random states basically meaning that for every random state 4 was the only optimal K, for Distribution we got 5 (std was +/- 0.0048), for Metabolism we got 4 (std was +/- 0.0082) and for the rest the std was quite high so that just basically means differnt random_states have different optimal value of K, so only for ADM I will change the K and keep the ET's K the same as before.
+	-Revised K values
+	- Absorption   = 5 -> 4
+	- Distribution = 5 -> 5
+	- Metabolism   = 5 -> 4
+	- Excretion    = 5 -> 5
+	- Toxicity     = 5 -> 5
+	
+## RUN-3
+- Small or big improvement is improvement.
+  => For Absorption it was 	-00.13
+  => For Distribution it was 	 76.90%
+  => For Metabolism it was	 75.84%
+  => For Excretion it was 	-00.13
+  => For Toxicity it was 	 76.64%
+
+- Currently, my next move is looking into the descriptors I have a hunch, that fixing that will improve accuracy and not to mention currently every endpoint is exposed to every descriptor even if they are totally unrealted welcoming unnecessary noise to the model. so I will analyze which descriptor is not needed for every dataset and maybe I will find something useful from it.
+
+- P.S. I found that 9/15 descriptors for absroption were adding legit less than 0%, so yeah I yeeted them only for the absorption case and did the same for others as well according to their own respective descriptor importance.
+
+## RUN-4
+- Improvement for absorption les go.
+  => For Absorption it was 	-00.06
+  => For Distribution it was 	 76.85%
+  => For Metabolism it was	 75.84%
+  => For Excretion it was 	-00.10
+  => For Toxicity it was 	 76.64%
+
+- Totally forgot about radius of Morgan fingerprint, it is a important parameter which I forgot to tweak, so let's tweak that shit in
+ didn't affected the results to actually change anything atp xgboost cannot help, it simply can't.
+
+- Now, I think I am stupid abandoning scaffold split so I am making a whole new different script which will have this scaffold split lets see what happens.
+
+## RUN-5
+- FFFFFFFFFFFFFFFFFFFFFFFFFF, I wish, I did this sooner.
+  => For Absorption it was 	 00.63
+  => For Distribution it was 	 88.12%
+  => For Metabolism it was	 81.30%
+  => For Excretion it was 	 00.10
+  => For Toxicity it was 	 81.83%
+
+- I will switch to spearman correlation because I just found out that this is what TDC also recommends
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

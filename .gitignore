@@ -1,0 +1,11 @@
+# Environments
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Ignore massive intermediate array files
+scaffold_dataset/*.npy
+
+# Ignore large model and UMAP binaries (Judges will generate these locally)
+models/
