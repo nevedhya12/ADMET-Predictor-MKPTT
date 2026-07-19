@@ -6,3 +6,5 @@ umap-learn>=0.5.3
 rdkit>=2023.3.1
 gradio>=4.0.0
 fuzzywuzzy
+requests
+tqdm
